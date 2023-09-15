@@ -1,10 +1,7 @@
 using MapSeedTools;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using Unity.VisualScripting;
 using UnityEngine;
-using WorldBuilderTools;
 
 namespace MapConstructorTools
 {
@@ -136,8 +133,13 @@ namespace MapConstructorTools
             return this;
         }
 
+        /// <summary>
+        /// Fills the terrain map using data from the elevation map. All elevations at
+        /// or below sea level will fill with water and all at or above mountain level
+        /// will become mountain tiles.
+        /// </summary>
         public MapConstructor TileSettingProcedure(
-            int seaLevel)
+            int seaLevel, int mountLevel)
         {
             if (!(seaLevel >= ELEV_LOW_BOUND && seaLevel <= ELEV_HIGH_BOUND))
                 throw new ArgumentException();
@@ -147,7 +149,7 @@ namespace MapConstructorTools
                 {
                     if (_map[x, y, ELEV_LAYER] <= seaLevel)
                         _map[x, y, TERR_LAYER] = WATER;
-                    else if (_map[x, y, ELEV_LAYER] >= ELEV_HIGH_APPROACH)
+                    else if (_map[x, y, ELEV_LAYER] >= mountLevel)
                         _map[x, y, TERR_LAYER] = MOUNTAIN;
                     else
                         _map[x, y, TERR_LAYER] = PLAINS;
@@ -165,11 +167,13 @@ namespace MapConstructorTools
             return this;
         }
 
-        public MapConstructor BiomeSpreadProcedure(
-            double errosionPower, double spreadPower, double altitudePreference)
+        public MapConstructor LandSculptProcedure(
+            int dryCycles, int dryPower,
+            int errosionCycles, double errosionPower)
         {
-            if (!(IsPercent(errosionPower) && IsPercent(spreadPower)
-                && IsPercent(altitudePreference))) throw new ArgumentException();
+            if (!(dryCycles >= 0 && errosionCycles >= 0
+                && IsPercent(dryPower) && IsPercent(errosionPower)))
+                throw new ArgumentException();
 
             return this;
         }
@@ -205,11 +209,15 @@ namespace MapConstructorTools
         private const double CORN_SPREAD_POW = 0.25;
 
         private const char NULL_ROOT = '\0';
-        private const string ALL_ROOTS =
-            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890<>";
+        private const string ALL_ROOTS = // there are 64 available plates
+            "abcdefghijklmnop" +
+            "qrstuvwxyzABCDEF" +
+            "GHIJKLMNOPQRSTUV" +
+            "WXYZ1234567890<>";
 
-        public static int[,] Create(int size, int roots,
-            int plateShift, double oceanRatio, int low, int high, Seed seed)
+        public static int[,] Create(
+            int size, int roots, int plateShift, double oceanRatio,
+            int low, int midLow, int mid, int midHigh, int high, Seed seed)
         {
             if (roots > MAX_FLOOD_SEEDS || roots < 0)
                 throw new ArgumentOutOfRangeException();
@@ -228,7 +236,8 @@ namespace MapConstructorTools
                             map.RootSpread(refMap[x, y], x, y, seed);
             }
 
-            return map.ShiftAndSet(plateShift, roots, oceanRatio, low, high, seed);
+            return map.ShiftAndSet(plateShift, roots, oceanRatio,
+                low, midLow, mid, midHigh, high, seed);
         }
 
         private static void RootSpread(this char[,] grid,
@@ -251,12 +260,14 @@ namespace MapConstructorTools
 
         private static int[,] ShiftAndSet(this char[,] rootGrid,
             int maxShift, int maxRoots, double oceanRatio,
-            int lowSet, int highSet, Seed seed)
+            int lowSet, int midLowSet, int midSet, int midHighSet, int highSet,
+            Seed seed)
         {
             int size = rootGrid.GetLength(0);
             int[,] plateGrid = new int[size, size].Fill(lowSet);
 
-            for (int root = 0; root < maxRoots; root++)
+            int cycs = maxRoots * 2; // one cycle per plate
+            for (int root = 0; root < cycs; root++)
             {
                 int sX = seed.RangeRoll(maxShift + 1);
                 int sY = seed.RangeRoll(maxShift + 1);
@@ -264,15 +275,31 @@ namespace MapConstructorTools
                     for (int y = 0; y < size; y++)
                         try
                         {
-                            if (rootGrid[x + sX, y + sY] == ALL_ROOTS[root])
-                                plateGrid[x, y] = root <= (int)(maxRoots * oceanRatio)
-                                    ? (plateGrid[x, y] == lowSet ? lowSet : 0)
-                                    : (plateGrid[x, y] == lowSet ? 0 : highSet);
+                            if (rootGrid[x, y] == ALL_ROOTS[root % maxRoots]
+                                && root <= (int)(maxRoots * oceanRatio))
+                                /*
+                                 * This procedure will be CANCELLED for ocean
+                                 * tiles during the first round.
+                                 */
+                                plateGrid.ForcePlateElev(x + sX, y + sY,
+                                    lowSet, midLowSet,
+                                    midSet,
+                                    midHighSet, highSet);
                         }
                         catch (IndexOutOfRangeException) { }
             }
 
             return plateGrid;
+        }
+
+        private static void ForcePlateElev(this int[,] grid,
+            int x, int y, int low, int midLow, int mid, int midHigh, int high)
+        {
+            int origin = grid[x, y];
+            if (origin == low) grid[x, y] = midLow;
+            else if (origin == midLow) grid[x, y] = mid;
+            else if (origin == mid) grid[x, y] = midHigh;
+            else if (origin == midHigh) grid[x, y] = high;
         }
     }
 

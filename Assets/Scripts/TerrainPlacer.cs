@@ -21,7 +21,7 @@ public class TerrainPlacer : MonoBehaviour
     //public QuickPreset constructPreset;
     public int constructSize;
     public int constructSeed;
-    public int plates, plateGap, seaLevel;
+    public int plates, plateGap, seaLevel, mountLevel;
     public bool forcePlates;
     public double oceans;
 
@@ -35,7 +35,7 @@ public class TerrainPlacer : MonoBehaviour
             .BuildNoiseMap()
             .TectonicsProcedure(plates, plateGap, forcePlates, oceans)
             .SmoothingProcedure()
-            .TileSettingProcedure(seaLevel)
+            .TileSettingProcedure(seaLevel, mountLevel)
             );
 
         Debug.Log("Map Construct Done!");

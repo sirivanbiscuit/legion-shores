@@ -11,7 +11,7 @@ namespace MapSeedTools
         public const int SEED_HIGH = 999999999;
 
         private readonly int _val;
-        private readonly System.Random _rng;
+        private readonly System.Random _rng;                                   
 
         public Seed(int val)
         {
