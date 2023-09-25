@@ -22,7 +22,6 @@ public class TerrainPlacer : MonoBehaviour
     public int constructSize;
     public int constructSeed;
     public int plates, plateGap, seaLevel, mountLevel;
-    public bool forcePlates;
     public double oceans;
 
     private TerrainEntryMap entryMap = new TerrainEntryMap();
@@ -32,10 +31,11 @@ public class TerrainPlacer : MonoBehaviour
     {
         int[,] map = MapConstructor.ExportTerr(constructSize, new Seed(constructSeed),
             (c) => c
-            .BuildNoiseMap()
-            .TectonicsProcedure(plates, plateGap, forcePlates, oceans)
-            .SmoothingProcedure()
-            .TileSettingProcedure(seaLevel, mountLevel)
+            .EBuildNoiseMap()
+            .ETectonicsProcedure(plates, plateGap, oceans)
+            .ESmoothingProcedure()
+            .EPullElevationGaps()
+            .TTileSettingProcedure(seaLevel, mountLevel)
             );
 
         Debug.Log("Map Construct Done!");

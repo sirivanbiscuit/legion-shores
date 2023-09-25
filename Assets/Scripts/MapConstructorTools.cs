@@ -5,13 +5,17 @@ using UnityEngine;
 
 namespace MapConstructorTools
 {
+    /// <summary>
+    /// Advanced class for building nice-looking world maps.
+    /// </summary>
     public class MapConstructor
     {
-        public const int ELEV_LAYER = 0;
-        public const int TERR_LAYER = 1;
+        public const int ELEV_LAYER = 0; // Used by E-methods
+        public const int TERR_LAYER = 1; // Used by T-methods
 
         private const int ELEV_LOW_BOUND = -3;
         private const int ELEV_LOW_APPROACH = -2;
+        private const int ELEV_MID = 0;
         private const int ELEV_HIGH_APPROACH = 2;
         private const int ELEV_HIGH_BOUND = 3;
 
@@ -59,12 +63,12 @@ namespace MapConstructorTools
         /// <summary>
         /// Forcibly sets all tiles in the map to a random elevation.
         /// </summary>
-        public MapConstructor BuildNoiseMap()
+        public MapConstructor EBuildNoiseMap()
         {
             for (int x = 0; x < _s; x++)
                 for (int y = 0; y < _s; y++)
                     _map[x, y, ELEV_LAYER] =
-                        _seed.RangeRoll(ELEV_LOW_BOUND, ELEV_HIGH_BOUND + 1);
+                        _seed.RangeRoll(ELEV_LOW_APPROACH, ELEV_HIGH_APPROACH + 1);
 
             return this;
         }
@@ -74,29 +78,20 @@ namespace MapConstructorTools
         /// shift, creating mountains or valleys. Plates can also become oceanic,
         /// completely filling themselves with water.
         /// </summary>
-        public MapConstructor TectonicsProcedure(
-            int plates, int borderThickness, bool force, double oceanRatio)
+        public MapConstructor ETectonicsProcedure(
+            int plates, int borderThickness, double oceanRatio)
         {
             if (!(plates > 0 && borderThickness > 0 && IsPercent(oceanRatio)))
                 throw new ArgumentException();
 
             int[,] elevMask = MapPlateFlooder.Create(
                 _s, plates, borderThickness, oceanRatio,
-                ELEV_LOW_BOUND, ELEV_HIGH_BOUND, _seed);
+                ELEV_LOW_BOUND, ELEV_LOW_APPROACH, ELEV_MID,
+                ELEV_HIGH_APPROACH, ELEV_HIGH_BOUND, _seed);
 
-            if (force)
-            {
-                for (int x = 0; x < _s; x++)
-                    for (int y = 0; y < _s; y++)
-                        if (elevMask[x, y] != 0)
-                            _map[x, y, ELEV_LAYER] = elevMask[x, y];
-            }
-            else
-            {
-                for (int x = 0; x < _s; x++)
-                    for (int y = 0; y < _s; y++)
-                        _map[x, y, ELEV_LAYER] += elevMask[x, y];
-            }
+            for (int x = 0; x < _s; x++)
+                for (int y = 0; y < _s; y++)
+                    _map[x, y, ELEV_LAYER] += elevMask[x, y];
 
             return this;
         }
@@ -107,7 +102,7 @@ namespace MapConstructorTools
         /// everywhere (but still some). Extreme elevations are resistant to this 
         /// smoothing.
         /// </summary>
-        public MapConstructor SmoothingProcedure()
+        public MapConstructor ESmoothingProcedure()
         {
             int targ, avg;
             int[] nearbys;
@@ -135,10 +130,10 @@ namespace MapConstructorTools
 
         /// <summary>
         /// Fills the terrain map using data from the elevation map. All elevations at
-        /// or below sea level will fill with water and all at or above mountain level
+        /// or below sea level will fill with water and all at or above mountain level   
         /// will become mountain tiles.
         /// </summary>
-        public MapConstructor TileSettingProcedure(
+        public MapConstructor TTileSettingProcedure(
             int seaLevel, int mountLevel)
         {
             if (!(seaLevel >= ELEV_LOW_BOUND && seaLevel <= ELEV_HIGH_BOUND))
@@ -158,7 +153,7 @@ namespace MapConstructorTools
             return this;
         }
 
-        public MapConstructor VegetationProcedure(
+        public MapConstructor TVegetationProcedure(
             double weatherDirection, double power)
         {
             if (!(IsPercent(weatherDirection) && IsPercent(power)))
@@ -167,18 +162,51 @@ namespace MapConstructorTools
             return this;
         }
 
-        public MapConstructor LandSculptProcedure(
-            int dryCycles, int dryPower,
-            int errosionCycles, double errosionPower)
+        /// <summary>
+        /// Dries a given proportion of water tiles into bare land tiles, and repeats
+        /// the process a given number of times.
+        /// </summary>
+        public MapConstructor TLandDryingProcedure(int cycles, double power)
         {
-            if (!(dryCycles >= 0 && errosionCycles >= 0
-                && IsPercent(dryPower) && IsPercent(errosionPower)))
+            if (!(cycles >= 0 && IsPercent(power)))
                 throw new ArgumentException();
+
+            for (int cyc = 0; cyc < cycles; cyc++)
+                for (int x = 0; x < _s; x++)
+                    for (int y = 0; y < _s; y++)
+                    {
+                        if (_map[x, y, TERR_LAYER] != WATER) continue;
+                        if (!_seed.PerRoll(power)) continue;
+                        if (_map.HasFeature(x, y, LandFeatures.Feature.NEAR_LAND))
+                            _map[x, y, TERR_LAYER] = PLAINS;
+                    }
 
             return this;
         }
 
-        public MapConstructor RiverGenProcedure(
+        /// <summary>
+        /// Errodes a given proportion of land tiles into water tiles, and repeats the 
+        /// process a given number of times.
+        /// </summary>
+        public MapConstructor TLandErrosionProcedure(int cycles, double power)
+        {
+            if (!(cycles >= 0 && IsPercent(power)))
+                throw new ArgumentException();
+
+            for (int cyc = 0; cyc < cycles; cyc++)
+                for (int x = 0; x < _s; x++)
+                    for (int y = 0; y < _s; y++)
+                    {
+                        if (_map[x, y, TERR_LAYER] == WATER) continue;
+                        if (!_seed.PerRoll(power)) continue;
+                        if (_map.HasFeature(x, y, LandFeatures.Feature.NEAR_WATER))
+                            _map[x, y, TERR_LAYER] = WATER;
+                    }
+
+            return this;
+        }
+
+        public MapConstructor TRiverGenProcedure(
             double spawnRate)
         {
             if (!IsPercent(spawnRate)) throw new ArgumentException();
@@ -186,14 +214,35 @@ namespace MapConstructorTools
             return this;
         }
 
-        public MapConstructor ForceBoundsProcedure()
+        /// <summary>
+        /// Forces all tiles to be within the valid bounds of elevation.
+        /// </summary>
+        public MapConstructor EForceBoundsProcedure()
         {
             for (int x = 0; x < _s; x++)
                 for (int y = 0; y < _s; y++)
                 {
                     if (_map[x, y, ELEV_LAYER] < ELEV_LOW_BOUND)
                         _map[x, y, ELEV_LAYER] = ELEV_LOW_BOUND;
-                    if (_map[x, y, ELEV_LAYER] > ELEV_HIGH_BOUND)
+                    else if (_map[x, y, ELEV_LAYER] > ELEV_HIGH_BOUND)
+                        _map[x, y, ELEV_LAYER] = ELEV_HIGH_BOUND;
+                }
+
+            return this;
+        }
+
+        /// <summary>
+        /// Forces all elevations near the elevation bounds to be pushed directly to the
+        /// bounds. This procedure only affects elevations witin valid bounds.
+        /// </summary>
+        public MapConstructor EPullElevationGaps()
+        {
+            for (int x = 0; x < _s; x++)
+                for (int y = 0; y < _s; y++)
+                {
+                    if (_map[x, y, ELEV_LAYER] <= ELEV_LOW_APPROACH)
+                        _map[x, y, ELEV_LAYER] = ELEV_LOW_BOUND;
+                    else if (_map[x, y, ELEV_LAYER] >= ELEV_HIGH_APPROACH)
                         _map[x, y, ELEV_LAYER] = ELEV_HIGH_BOUND;
                 }
 
@@ -201,12 +250,18 @@ namespace MapConstructorTools
         }
     }
 
+    /// <summary>
+    /// Extension class containing procedures for building an elevation map with 
+    /// distinct mountain ranges and valleys. The constructed map should be placed over 
+    /// top of a pre-existing map like a mask, it does NOT have any other geographical 
+    /// features.
+    /// </summary>
     public static class MapPlateFlooder
     {
         private const int MAX_FLOOD_SEEDS = 64;
 
-        private const double EDGE_SPREAD_POW = 0.5;
-        private const double CORN_SPREAD_POW = 0.25;
+        private const double EDGE_SPREAD_POW = 0.8;
+        private const double CORN_SPREAD_POW = 0.4;
 
         private const char NULL_ROOT = '\0';
         private const string ALL_ROOTS = // there are 64 available plates
@@ -227,13 +282,16 @@ namespace MapConstructorTools
                 map[seed.RangeRoll(size), seed.RangeRoll(size)] = ALL_ROOTS[i];
 
             char[,] refMap;
-            for (int cyc = 0; cyc < size; cyc++)
+            bool hasNulls = true;
+            while (hasNulls)
             {
+                hasNulls = false;
                 refMap = (char[,])map.Clone();
                 for (int x = 0; x < size; x++)
                     for (int y = 0; y < size; y++)
                         if (refMap[x, y] != NULL_ROOT)
                             map.RootSpread(refMap[x, y], x, y, seed);
+                        else hasNulls = true;
             }
 
             return map.ShiftAndSet(plateShift, roots, oceanRatio,
@@ -245,17 +303,18 @@ namespace MapConstructorTools
         {
             for (int xOS = -1; xOS <= 1; xOS++)
                 for (int yOS = -1; yOS <= 1; yOS++)
-                    if (
-                        (Math.Abs(xOS) != Math.Abs(yOS)
-                        && seed.PerRoll(EDGE_SPREAD_POW)) ||
-                        seed.PerRoll(CORN_SPREAD_POW)
-                        )
-                        try
-                        {
-                            if (grid[x + xOS, y + yOS] == NULL_ROOT)
+                    try
+                    {
+                        if (grid[x + xOS, y + yOS] == NULL_ROOT)
+                            if (
+                            (Math.Abs(xOS) != Math.Abs(yOS)
+                            && seed.PerRoll(EDGE_SPREAD_POW)) ||
+                            (Math.Abs(xOS) == Math.Abs(yOS) &&
+                            seed.PerRoll(CORN_SPREAD_POW))
+                            )
                                 grid[x + xOS, y + yOS] = root;
-                        }
-                        catch (IndexOutOfRangeException) { }
+                    }
+                    catch (IndexOutOfRangeException) { }
         }
 
         private static int[,] ShiftAndSet(this char[,] rootGrid,
@@ -276,7 +335,8 @@ namespace MapConstructorTools
                         try
                         {
                             if (rootGrid[x, y] == ALL_ROOTS[root % maxRoots]
-                                && root <= (int)(maxRoots * oceanRatio))
+                                && root >= (int)(maxRoots * oceanRatio))
+                            {
                                 /*
                                  * This procedure will be CANCELLED for ocean
                                  * tiles during the first round.
@@ -285,6 +345,7 @@ namespace MapConstructorTools
                                     lowSet, midLowSet,
                                     midSet,
                                     midHighSet, highSet);
+                            }
                         }
                         catch (IndexOutOfRangeException) { }
             }
@@ -303,6 +364,9 @@ namespace MapConstructorTools
         }
     }
 
+    /// <summary>
+    /// Extension class with miscellaneous tools for exploring a grid map.
+    /// </summary>
     public static class GridTools
     {
         private static readonly Vector2Int[] VECTS = {
@@ -330,6 +394,10 @@ namespace MapConstructorTools
         }
     }
 
+    /// <summary>
+    /// Extension class for finding information about the features of a map around
+    /// targeted grid tiles.
+    /// </summary>
     public static class LandFeatures
     {
         public enum Feature
