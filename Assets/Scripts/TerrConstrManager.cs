@@ -7,6 +7,8 @@ using UnityEngine.Tilemaps;
 using System.Collections.Generic;
 using Random = System.Random;
 using System;
+using System.Diagnostics;
+using Debug = UnityEngine.Debug;
 
 public class TerrConstrManager : MonoBehaviour
 {
@@ -96,6 +98,8 @@ public class TerrConstrManager : MonoBehaviour
     [ContextMenu("Build Map (given seed)")]
     void ConstructMap()
     {
+        // run terrain algorithm via WorldConstructor
+        var watch = Stopwatch.StartNew();
         constr = MapConstructor.Export(mapSize,
             (c) => c
             .ApplySeed(mapSeed)
@@ -120,6 +124,7 @@ public class TerrConstrManager : MonoBehaviour
             .SimpleLandCleanup(false, 0)
             .SetCloudBorder(borderThickness)
             );
+        // clear map and paint
         AssetDatabase.Refresh();
         ClearMap();
         Tile[] types = MapUtil.GetTileSet(
@@ -132,5 +137,7 @@ public class TerrConstrManager : MonoBehaviour
             {
                 terrMap.SetTile(new(x, y), types[constr[x, y]]);
             }
+        watch.Stop();
+        Debug.Log($"Terr exe time: {watch.ElapsedMilliseconds} ms");
     }
 }

@@ -5,7 +5,6 @@ using UnityEngine;
 using UnityEngine.Tilemaps;
 using PoliticalEntities;
 using Vector2 = UnityEngine.Vector2;
-using JetBrains.Annotations;
 
 namespace GenerationTools
 {
@@ -69,7 +68,6 @@ namespace GenerationTools
         public static bool IsWalkableNonArid(byte t)
             => IsWalkable(t) && !IsArid(t);
 
-
         public static byte[,] DeepCopy(byte[,] src)
         {
             // non-square source map error
@@ -78,6 +76,19 @@ namespace GenerationTools
             // deep copy and return
             int len = src.GetLength(0);
             byte[,] ret = new byte[len, len];
+            for (int x = 0; x < len; x++)
+                for (int y = 0; y < len; y++)
+                    ret[x, y] = src[x, y];
+            return ret;
+        }
+        public static int[,] DeepCopy(int[,] src)
+        {
+            // non-square source map error
+            if (src.GetLength(0) != src.GetLength(1))
+                throw new ArgumentException("MU08: Source map is not square");
+            // deep copy and return
+            int len = src.GetLength(0);
+            int[,] ret = new int[len, len];
             for (int x = 0; x < len; x++)
                 for (int y = 0; y < len; y++)
                     ret[x, y] = src[x, y];
@@ -206,24 +217,22 @@ namespace GenerationTools
         {
             try
             {
-                string lookAt;
                 Dictionary<string, int> near = new();
                 for (int i = -1; i <= 1; i++)
                     for (int j = -1; j <= 1; j++)
                     {
                         if (!(i == 0 && j == 0))
                         {
-                            lookAt = map[x + i, y + j, layer];
+                            string lookAt = map[x + i, y + j, layer];
                             if (!near.ContainsKey(lookAt)) near[lookAt] = 1;
                             else near[lookAt]++;
                         }
                     }
                 string max = null;
                 int maxAmount = 0;
-                int look;
                 foreach (string key in near.Keys)
                 {
-                    look = near[key];
+                    int look = near[key];
                     if (look >= surroundReq
                         && look > maxAmount)
                     {
@@ -235,6 +244,62 @@ namespace GenerationTools
             }
             catch (IndexOutOfRangeException)
             { throw new ArgumentException("MU06: Invalid coordinates"); }
+        }
+
+        /*
+         * Returns the most-common nearby integer that occurs at least
+         * (surroundReq) number of times. Includes both edges and corners.
+         */
+        public static int GetSurrounding(int[,] map,
+            int x, int y, int surroundReq, int blacklist = -1)
+        {
+            try
+            {
+                Dictionary<int, int> near = new();
+                for (int i = -1; i <= 1; i++)
+                    for (int j = -1; j <= 1; j++)
+                    {
+                        if (!(i == 0 && j == 0))
+                        {
+                            int look = map[x + i, y + j];
+                            if (look == blacklist) continue;
+                            if (!near.ContainsKey(look)) near[look] = 1;
+                            else near[look]++;
+                        }
+                    }
+                int max = -1;
+                int maxAmount = 0;
+                foreach (int key in near.Keys)
+                {
+                    int look = near[key];
+                    if (look >= surroundReq
+                        && look > maxAmount)
+                    {
+                        max = key;
+                        maxAmount = look;
+                    }
+                }
+                return max;
+            }
+            catch (IndexOutOfRangeException)
+            { throw new ArgumentException("MU06: Invalid coordinates"); }
+        }
+
+        public static int FindNear(int[,] map, int x, int y, int lookFor)
+        {
+            try
+            {
+                int count = 0;
+                for (int i = -1; i <= 1; i++)
+                    for (int j = -1; j <= 1;
+                        j += (i == 0 && j == -1) ? 2 : 1)
+                    {
+                        if (map[x, y] == lookFor) count++;
+                    }
+                return count;
+            }
+            catch (IndexOutOfRangeException)
+            { throw new ArgumentException("MU07: Invalid coordinates"); }
         }
     }
 
@@ -352,15 +417,13 @@ namespace GenerationTools
             byte markBuffer = 20;
             int l = fS, h = _size - 1 - fS;
             int m = (_size / 2) - fB - fS;
-            int dir, iter;
-            double rng;
             for (int c = 0; c < cycles; c++)
             {
                 Vector2Int last = new(_size / 2, _size / 2);
                 for (int f = 0; f < floodsPerCycle; f++)
                 {
-                    dir = 0;
-                    iter = 0;
+                    int dir = 0;
+                    int iter = 0;
                     Vector2Int org;
                     do
                     {
@@ -373,7 +436,7 @@ namespace GenerationTools
                     //_map[org.x, org.y] = MapUtil.CLOUD; // for testing
                     while (iter < fSi)
                     {
-                        rng = _seed.PerRaw();
+                        double rng = _seed.PerRaw();
                         if (_map[org.x, org.y] < maxHeight)
                         {
                             _map[org.x, org.y] += (byte)(markBuffer + 1);
@@ -610,11 +673,7 @@ namespace GenerationTools
             int h = _size - 2 - riverFlowBuffer;
             int sB = riverStartBuffer;
             int rW = riverWidth, rA = riverAmount;
-            double rI;
-            byte check;
             int maxAts = _size * _size;
-            int orgAts, watAts;
-            bool mountSpawn, foundWater;
             for (int r = 0; r < rA; r++)
             {
                 // switch to minors if applicable
@@ -622,8 +681,8 @@ namespace GenerationTools
                 // find origin mountain
                 Vector2Int org;
                 byte[,] rfr = MapUtil.DeepCopy(_map);
-                orgAts = 0;
-                mountSpawn = _seed.PerRoll(naturalPref);
+                int orgAts = 0;
+                bool mountSpawn = _seed.PerRoll(naturalPref);
                 do
                 {
                     if (orgAts >= maxAts)
@@ -642,8 +701,8 @@ namespace GenerationTools
                 do dir = new(_seed.RangeRoll(-1, 1), _seed.RangeRoll(-1, 1));
                 while (dir.x == 0 && dir.y == 0);
                 Vector2Int newDir, ogDir = new(dir.x, dir.y);
-                foundWater = false;
-                watAts = 0;
+                bool foundWater = false;
+                int watAts = 0;
                 while (!foundWater)
                 {
                     if (watAts >= maxAts)
@@ -672,7 +731,7 @@ namespace GenerationTools
                                     if (Math.Abs(i) + Math.Abs(j) > rW)
                                         continue;
                                     // flood river patch
-                                    check = _map[org.x + i, org.y + j];
+                                    byte check = _map[org.x + i, org.y + j];
                                     if (check != MapUtil.RIVER
                                         && (check != MapUtil.MOUNTAINS
                                             || (i == 0 && j == 0)))
@@ -682,8 +741,8 @@ namespace GenerationTools
                                             rfr, org.x + i, org.y + j,
                                             MapUtil.MOUNTAINS, 1))
                                             continue;
-                                        if (i == 0 && j == 0) rI = 1;
-                                        else rI = riverDepth;
+                                        double rI = (i == 0 && j == 0)
+                                            ? 1 : riverDepth;
                                         if (_seed.PerRoll(rI))
                                         {
                                             _map[org.x + i, org.y + j] =
@@ -725,14 +784,12 @@ namespace GenerationTools
 
             int l = 1 + forestAreaBuffer;
             int h = _size - 2 - forestAreaBuffer;
-            int planted, orgAts, growAts, dir;
             int maxAts = _size * (fastGen ? 1 : _size);
             int maxGrowAts = (_size * _size) * (fastGen ? 1 : _size);
-            double rng;
             for (int f = 0; f < forestAmount; f++)
             {
                 Vector2Int org;
-                orgAts = 0;
+                int orgAts = 0;
                 do
                 {
                     if (orgAts >= maxAts)
@@ -741,12 +798,12 @@ namespace GenerationTools
                         _seed.RangeRoll(l, h));
                     orgAts++;
                 } while (_map[org.x, org.y] != MapUtil.PLAINS);
-                planted = 1; dir = 0; growAts = 0;
+                int planted = 1, dir = 0, growAts = 0;
                 while (planted < forestSize)
                 {
                     if (growAts >= maxGrowAts)
                         throw new Exception("MC09: Forest Gen failed");
-                    rng = _seed.PerRaw();
+                    double rng = _seed.PerRaw();
                     if (_map[org.x, org.y] == MapUtil.PLAINS
                         && _seed.PerRoll(forestDensity))
                     {
@@ -856,13 +913,6 @@ namespace GenerationTools
             double sV = spreadVariance;
             double wF = weatherForce;
             double wD = weatherDir;
-            double dOff;
-            // unit vector of direction of desertifaction
-            Vector2 dir;
-            Vector2Int spr;
-            int airStr;
-            double airPush;
-            byte getAt;
             for (int c = 0; c < desertCycles; c++)
             {
                 byte[,] rfr = MapUtil.DeepCopy(_map);
@@ -879,21 +929,24 @@ namespace GenerationTools
                                         MapUtil.MOUNTAINS, 4))
                                     continue;
                             }
-                            dOff = wD + ((_seed.PerRaw() / 2.0) - 0.25) * sV;
+                            double dOff = wD
+                                + ((_seed.PerRaw() / 2.0) - 0.25) * sV;
                             if (dOff >= 1) dOff -= 1;
                             else if (dOff < 0) dOff += 1;
-                            dir = MapUtil.UnitVecFromDir(dOff);
-                            airPush = _seed.PerRaw();
+                            // unit vector of direction of desertifaction
+                            Vector2 dir = MapUtil.UnitVecFromDir(dOff);
+                            double airPush = _seed.PerRaw();
+                            int airStr;
                             if (airPush < wF * 0.1) airStr = 4;
                             else if (airPush < wF * 0.5) airStr = 3;
                             else airStr = 2;
-                            spr = new(
+                            Vector2Int spr = new(
                                 x + (int)(airStr * dir.x),
                                 y + (int)(airStr * dir.y));
                             if (spr.x < l || spr.x > h
                                 || spr.y < l || spr.y > h)
                                 continue;
-                            getAt = rfr[spr.x, spr.y];
+                            byte getAt = rfr[spr.x, spr.y];
                             if (getAt == MapUtil.PLAINS)
                                 _map[spr.x, spr.y] = MapUtil.DESERT;
                             else if (getAt == MapUtil.WETLANDS)
@@ -907,8 +960,28 @@ namespace GenerationTools
         }
     }
 
+    /// <summary>
+    /// A seperate construction object for populating a map with various
+    /// ethnic regions and territories. The algorithm will require an
+    /// input map built via a MapConstructor. Simply get a return Package
+    /// via the Export(...) function (you will need to reference your 
+    /// pre-constructed map here). The exported Package contains a 
+    /// multidimensional array containing the entity IDs of each map tile.
+    /// Keys to these IDs and their corresponding entity objects are also
+    /// given in the Package.
+    /// </summary>
     public class WorldPopulator
     {
+        // UTILITY CLASS
+        private class BBox
+        {
+            public int lX, lY, hX, hY;
+
+            public BBox(int minX, int minY, int maxX, int maxY)
+            { lX = minX; lY = minY; hX = maxX; hY = maxY; }
+        }
+
+        // Get consts from the PolType enum
         public const int LAYER_ETH = (int)PolType.ETHNIC;
         public const int LAYER_REA = (int)PolType.REALM;
         public const int LAYER_REG = (int)PolType.REGION;
@@ -920,7 +993,7 @@ namespace GenerationTools
         public const char DIV = ';';
 
         public const int LEN_ETH_ID = 2;
-        public const int LEN_REA_ID = 2;
+        public const int LEN_REA_ID = 3;
         public const int LEN_REG_ID = 3;
         public const int LEN_ENT_ID = 3;
 
@@ -938,7 +1011,10 @@ namespace GenerationTools
 
         private Seed _seed;
 
-        private readonly Dictionary<string, string> _info = new();
+        private readonly Dictionary<string, AbstractPol> _info = new();
+
+        // probably dont need to export, but helpful for generation
+        private readonly Dictionary<string, BBox> _ethBounds = new();
 
         private WorldPopulator(byte[,] reference, int seedValue)
         {
@@ -952,31 +1028,31 @@ namespace GenerationTools
             ResetTemp();
         }
 
-        public readonly struct Package
-        {
-            public readonly string[,,] Map;
-            public readonly Dictionary<string, string> Info;
+        public const int MAX_ETHNICS = 128;
+        public const int MAX_REALMS_PER_ETHNIC = 16;
 
-            public Package(string[,,] map, Dictionary<string, string> info)
-            { Map = map; Info = info; }
-        }
-
-        public const int MAX_ETHNICS = 64;
-        public const int MAX_REALMS_PER_ETHNIC = 64;
-
-        public static Package Export(byte[,] reference, int seedValue,
-            int maxEthnics, int maxRealmsPerEthnic, int maxRealmSize,
-            bool forceDesertWilds)
+        public static World Export(byte[,] reference, int seedValue,
+            int maxEthnics, int maxRealmsPerEthnic, RegS regionType,
+            double regionRoughness, bool forceDesertWilds)
         {
             WorldPopulator wP = new(reference, seedValue);
-            wP.FillWithBaseStr();
+            wP.FillWithNullStrings();
             wP.BuildEthnics(maxEthnics, forceDesertWilds);
-            wP.FormRegions();
-            wP.BuildRealms(maxRealmsPerEthnic, maxRealmSize);
-            return new(wP._map, wP._info);
+            wP.FormRegions(regionType, regionRoughness);
+            wP.BuildRealms(maxRealmsPerEthnic);
+            return new(wP._terr, wP._map, wP._info);
         }
 
-        private void FillWithBaseStr()
+        /*
+         * Tiles with an ID of completely zeroes (000...) are considered
+         * 'null' with no features. For example, a tile with '00' as its
+         * ethnic ID means that that tile is not part of any ethnic.
+         * 
+         * To prevent null-pointers and string length inconsistencies,
+         * the map should be completely filled with 'null strings' prior
+         * to generation of any further features.
+         */
+        private void FillWithNullStrings()
         {
             for (int x = 0; x < _size; x++)
                 for (int y = 0; y < _size; y++)
@@ -988,6 +1064,19 @@ namespace GenerationTools
                 }
         }
 
+        /*
+         * Divides up to (maxEth) of the LARGEST contiguous biomes into 
+         * their own 'Ethnics', or continents inhabited by unique races 
+         * and features. There are two valid 'biomes', those being temperate 
+         * (forest/wetlands/plains) and arid (deserts/dryforests). Water 
+         * tiles are not populated by any Ethnic. Land tiles that do not 
+         * get assigned to any Ethnic will be marked as 'Wilds'.
+         * 
+         * There is an option that forces all arid biomes to be completely
+         * inhabited by Wilds. Thus, all Ethnics will be temperate.
+         * 
+         * You can place up to 64 Ethnics on a single map.
+         */
         private void BuildEthnics(int maxEth, bool wildDeserts)
         {
             if (maxEth > MAX_ETHNICS || maxEth < 1)
@@ -1004,11 +1093,10 @@ namespace GenerationTools
                 bool aridEth = false;
                 int lX = 0, hX = 0;
                 int lY = 0, hY = 0;
-                byte look;
                 for (int x = 0; x < _size && !foundOrg; x++)
                     for (int y = 0; y < _size && !foundOrg; y++)
                     {
-                        look = _terr[x, y];
+                        byte look = _terr[x, y];
                         if (MapUtil.IsWalkable(look)
                             && _temp[x, y] == 0)
                         {
@@ -1019,7 +1107,7 @@ namespace GenerationTools
                             hX = x + 1; hY = y + 1;
                             _temp[x, y] = placedDivId;
                             divSizes[placedDivId] = 1;
-                            
+
                         }
                     }
                 if (!foundOrg) availOrg = false;
@@ -1073,13 +1161,29 @@ namespace GenerationTools
             {
                 int targI = largest[i - 1];
                 string id = IntToId(i, LEN_ETH_ID);
-                CreateRef(PolType.ETHNIC,
-                    i + " People", IntToId(i, LEN_ETH_ID));
+                CreateRef(PolType.ETHNIC, "Ethnic " + i, id);
+                bool found = false;
+                BBox bb = null;
                 for (int x = 0; x < _size; x++)
                     for (int y = 0; y < _size; y++)
                     {
                         if (_temp[x, y] == targI)
+                        {
+                            if (!found)
+                            {
+                                _ethBounds[id] = new(x, y, x, y);
+                                bb = _ethBounds[id];
+                                found = true;
+                            }
+                            else
+                            {
+                                if (x < bb.lX) bb.lX = x;
+                                else if (x > bb.hX) bb.hX = x;
+                                if (y < bb.lY) bb.lY = y;
+                                else if (y > bb.hY) bb.hY = y;
+                            }
                             _map[x, y, LAYER_ETH] = id;
+                        }
                     }
             }
             // Fill remaining land with wilds/nulls
@@ -1093,15 +1197,15 @@ namespace GenerationTools
                         && MapUtil.IsWalkable(_terr[x, y]))
                         _map[x, y, LAYER_ETH] = wildId;
                 }
+            _ethBounds[wildId] = new(0, 0, _size - 1, _size - 1);
             // Clean up ethnic boundaries
-            string sur, get;
             string b = BaseId(LEN_ETH_ID);
             int cyc = 4;
             for (int c = 0; c < cyc; c++)
                 for (int x = 1; x < _size - 1; x++)
                     for (int y = 1; y < _size - 1; y++)
                     {
-                        get = _map[x, y, LAYER_ETH];
+                        string sur, get = _map[x, y, LAYER_ETH];
                         if (get == null || get == b) continue;
                         sur = MapUtil.GetSurrounding(_map, x, y, LAYER_ETH, 5);
                         if (sur != null && sur != b && sur != get)
@@ -1109,33 +1213,104 @@ namespace GenerationTools
                     }
         }
 
-        private void FormRegions()
+        /*
+         * Breaks down all Ethnics into connected patches of tiles of 
+         * (approximately) the given size type. Aquatic tiles will not
+         * have regions as they do not have Ethnics.
+         */
+        private void FormRegions(RegS type, double roughness)
         {
+            if (roughness < 0 || roughness >= 1)
+                throw new ArgumentException("WP04: Invalid Roughness");
+            int rS = (int)type;
+            int root = (int)Math.Sqrt(rS);
+            double rgh = roughness * 0.5 + 0.5;
+            string ethBase = BaseId(LEN_ETH_ID);
+            int r = 0;
+            // form regions for each ethnic seperately
+            foreach (string eth in _ethBounds.Keys)
+            {
+                // plant 'region roots' in the temp map
+                int rootN = 0;
+                BBox bb = _ethBounds[eth];
+                ResetTemp(); // IMPORTANT
+                for (int x = bb.lX + (root / 2); x <= bb.hX; x += root)
+                    for (int y = bb.lY + (root / 2); y <= bb.hY; y += root)
+                    {
+                        if (_map[x, y, LAYER_ETH] != ethBase)
+                            _temp[x, y] = rootN++;
+                    }
+                // 'spread' from each root until no spreads possible
+                bool spread = true;
+                while (spread)
+                {
+                    spread = false;
+                    int[,] rfr = MapUtil.DeepCopy(_temp);
+                    for (int x = bb.lX; x <= bb.hX; x++)
+                        for (int y = bb.lY; y <= bb.hY; y++)
+                        {
+                            if (_map[x, y, LAYER_ETH] != ethBase
+                                && rfr[x, y] == 0)
+                            {
+                                int near = MapUtil.GetSurrounding(
+                                    rfr, x, y, 1, 0);
+                                if (near > 0)
+                                {
+                                    spread = true;
+                                    if (!_seed.PerRoll(rgh))
+                                        _temp[x, y] = near;
+                                }
+                            }
+                        }
+                }
+                // if there are still tiles left, fill with final reg
+                int final = rootN++;
+                for (int x = bb.lX; x <= bb.hX; x++)
+                    for (int y = bb.lY; y <= bb.hY; y++)
+                    {
+                        if (_map[x, y, LAYER_ETH] != ethBase
+                            && _temp[x, y] == 0) _temp[x, y] = final;
+                    }
+                // set the temp to reg ID
+                for (int x = bb.lX; x <= bb.hX; x++)
+                    for (int y = bb.lY; y <= bb.hY; y++)
+                    {
+                        int reg = _temp[x, y];
+                        string regId = IntToId(reg, LEN_REG_ID);
+                        _map[x, y, LAYER_REG] = regId;
+                        if (GetNameRef(PolType.REGION, regId) == null)
+                        {
+                            CreateRef(PolType.REGION,
+                                "Region " + r++, regId);
+                        }
+                    }
+            }
         }
 
-        private void BuildRealms(int maxPetEth, int maxSize)
+        /*
+         * 
+         */
+        private void BuildRealms(int maxPetEth)
         {
+
         }
 
         private void ResetTemp() => _temp = new int[_size, _size];
 
-        private void CreateRef(PolType type, string fullName, string enc)
-            => _info.Add(((int)type) + enc, fullName);
+        private void CreateRef(PolType type, string fullName, string enc) 
+            => WorldTools.CreateRef(type, fullName, enc, _info);  
 
-        private string GetNameRef(PolType type, string enc)
-        {
-            try { return _info[((int)type) + enc]; }
-            catch (KeyNotFoundException) { return null; }
-        }
+        private AbstractPol GetNameRef(PolType type, string enc)
+            => WorldTools.GetNameRef(type, enc, _info);
 
         public static string IntToId(int i, int idLen)
         {
             string ret = "";
             int n = i;
-            int rm;
+            int len = ID.Length;
             for (int p = idLen - 1; p >= 0; p--)
             {
-                rm = (int)Math.Pow(ID.Length, p);
+                int rm = (int)Math.Pow(len, p);
                 ret += ID[n / rm];
                 n -= rm * (n / rm);
             }

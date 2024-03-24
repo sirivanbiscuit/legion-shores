@@ -322,7 +322,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   terrMap: {fileID: 421297441}
   mapSize: 512
-  mapSeed: 344462619
+  mapSeed: 404450191
   borderThickness: 1
   cloudTile: {fileID: 11400000, guid: 21ffe7c10c1524c46a24eabab69edfaf, type: 2}
   cycles: 6
@@ -333,7 +333,7 @@ MonoBehaviour:
   floodOriginVariance: 0.5
   floodDecay: 400
   decayPerFlood: 0
-  decayPerCycle: 0
+  decayPerCycle: 1
   oceanTile: {fileID: 11400000, guid: 3c60367fd00f9d349b5b500832d45684, type: 2}
   swampTile: {fileID: 11400000, guid: cf0636492fe6bd24aa2e2af163b03ccb, type: 2}
   wetlandsTile: {fileID: 11400000, guid: 09f833d799cc3ac45972e6e1e947722f, type: 2}
@@ -346,7 +346,7 @@ MonoBehaviour:
   settleCycles: 15
   settleAreaBuffer: 0
   forestTile: {fileID: 11400000, guid: 34823956fbd0546449b3508a78ae9421, type: 2}
-  forestSize: 60
+  forestSize: 100
   forestAmount: 200
   forestDensity: 0.2
   shallowTile: {fileID: 11400000, guid: bc56a1264fc196444a4f300be41c5cd1, type: 2}
@@ -360,7 +360,7 @@ MonoBehaviour:
   dryForestTile: {fileID: 11400000, guid: 7150237229b82444bababf2338531459, type: 2}
   desertCycles: 20
   desertVariance: 1
-  weatherDirection: 0.5
+  weatherDirection: 0.1
   weatherForce: 1
 --- !u!114 &443939260
 MonoBehaviour:
@@ -379,10 +379,11 @@ MonoBehaviour:
   landFiller: {fileID: 11400000, guid: 21ffe7c10c1524c46a24eabab69edfaf, type: 2}
   waterFiller: {fileID: 11400000, guid: bc56a1264fc196444a4f300be41c5cd1, type: 2}
   mountFiller: {fileID: 11400000, guid: 21ffe7c10c1524c46a24eabab69edfaf, type: 2}
-  maxEthnics: 64
+  maxEthnics: 128
   maxRealmsPerEthnic: 0
-  realmSize: 0
-  forceWildDeserts: 1
+  regionType: 36
+  regionRoughness: 0.7
+  forceWildDeserts: 0
 --- !u!1 &519420028
 GameObject:
   m_ObjectHideFlags: 0
@@ -444,7 +445,7 @@ Camera:
   far clip plane: 1000
   field of view: 60
   orthographic: 1
-  orthographic size: 193.9
+  orthographic size: 2.3
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
@@ -468,7 +469,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 519420028}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 8.3, y: 57.1, z: -8.67}
+  m_LocalPosition: {x: -3.2, y: 135.6, z: -50}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -624,7 +625,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2075531254}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 266, y: -138, z: 0}
+  m_LocalPosition: {x: 0, y: -266, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -671,7 +672,7 @@ TilemapRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 1
   m_ChunkSize: {x: 32, y: 32, z: 32}
   m_ChunkCullingBounds: {x: 0, y: 0.25, z: 0}
   m_MaxChunkCount: 16
