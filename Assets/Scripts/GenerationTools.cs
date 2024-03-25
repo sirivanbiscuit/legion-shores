@@ -963,12 +963,11 @@ namespace GenerationTools
     /// <summary>
     /// A seperate construction object for populating a map with various
     /// ethnic regions and territories. The algorithm will require an
-    /// input map built via a MapConstructor. Simply get a return Package
+    /// input map built via a MapConstructor. Simply get a return World
     /// via the Export(...) function (you will need to reference your 
-    /// pre-constructed map here). The exported Package contains a 
-    /// multidimensional array containing the entity IDs of each map tile.
-    /// Keys to these IDs and their corresponding entity objects are also
-    /// given in the Package.
+    /// pre-constructed map here). The constructed World object will need 
+    /// to have valid array maps, a completed list of all map Ethnics,
+    /// and a ID dictionary which maps all array IDs to objects.
     /// </summary>
     public class WorldPopulator
     {
@@ -981,7 +980,11 @@ namespace GenerationTools
             { lX = minX; lY = minY; hX = maxX; hY = maxY; }
         }
 
-        // Get consts from the PolType enum
+        /*
+         * Get consts from the PolType enum
+         * Note: REG and ENT can be generated more efficiently AFTER
+         * world export, so their layers will remain empty 
+         */
         public const int LAYER_ETH = (int)PolType.ETHNIC;
         public const int LAYER_REA = (int)PolType.REALM;
         public const int LAYER_REG = (int)PolType.REGION;
@@ -997,7 +1000,7 @@ namespace GenerationTools
         public const int LEN_REG_ID = 3;
         public const int LEN_ENT_ID = 3;
 
-        private const string ID
+        public const string ID
             = "0123456789"
             + "abcdefghijklmnopqrstuvwxyz"
             + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -1009,7 +1012,7 @@ namespace GenerationTools
 
         private int[,] _temp; // starts empty, use if needed (?)
 
-        private Seed _seed;
+        private readonly Seed _seed;
 
         private readonly Dictionary<string, AbstractPol> _info = new();
 
@@ -1032,15 +1035,14 @@ namespace GenerationTools
         public const int MAX_REALMS_PER_ETHNIC = 16;
 
         public static World Export(byte[,] reference, int seedValue,
-            int maxEthnics, int maxRealmsPerEthnic, RegS regionType,
-            double regionRoughness, bool forceDesertWilds)
+            int maxEthnics, RegS regionType, double regionRoughness,
+            bool forceDesertWilds)
         {
             WorldPopulator wP = new(reference, seedValue);
             wP.FillWithNullStrings();
             wP.BuildEthnics(maxEthnics, forceDesertWilds);
             wP.FormRegions(regionType, regionRoughness);
-            wP.BuildRealms(maxRealmsPerEthnic);
-            return new(wP._terr, wP._map, wP._info);
+            return new(wP._terr, wP._map, wP._seed.Get(), wP._info);
         }
 
         /*
@@ -1189,7 +1191,7 @@ namespace GenerationTools
             // Fill remaining land with wilds/nulls
             string nullId = BaseId(LEN_ETH_ID);
             string wildId = IntToId(largest.Count + 1, LEN_ETH_ID);
-            CreateRef(PolType.ETHNIC, "Wilds", wildId);
+            CreateRef(PolType.ETHNIC, Ethnic.Wild, wildId);
             for (int x = 0; x < _size; x++)
                 for (int y = 0; y < _size; y++)
                 {
@@ -1287,21 +1289,13 @@ namespace GenerationTools
             }
         }
 
-        /*
-         * 
-         */
-        private void BuildRealms(int maxPetEth)
-        {
-
-        }
-
         private void ResetTemp() => _temp = new int[_size, _size];
 
-        private void CreateRef(PolType type, string fullName, string enc) 
-            => WorldTools.CreateRef(type, fullName, enc, _info);  
+        private void CreateRef(PolType type, string fullName, string enc)
+            => WorldTools.CreateRef(type, fullName, enc, _info);
 
         private AbstractPol GetNameRef(PolType type, string enc)
-            => WorldTools.GetNameRef(type, enc, _info);
+            => WorldTools.GetRef(type, enc, _info);
 
         public static string IntToId(int i, int idLen)
         {

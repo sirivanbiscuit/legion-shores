@@ -322,7 +322,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   terrMap: {fileID: 421297441}
   mapSize: 512
-  mapSeed: 404450191
+  mapSeed: 673761733
   borderThickness: 1
   cloudTile: {fileID: 11400000, guid: 21ffe7c10c1524c46a24eabab69edfaf, type: 2}
   cycles: 6
@@ -379,11 +379,12 @@ MonoBehaviour:
   landFiller: {fileID: 11400000, guid: 21ffe7c10c1524c46a24eabab69edfaf, type: 2}
   waterFiller: {fileID: 11400000, guid: bc56a1264fc196444a4f300be41c5cd1, type: 2}
   mountFiller: {fileID: 11400000, guid: 21ffe7c10c1524c46a24eabab69edfaf, type: 2}
-  maxEthnics: 128
-  maxRealmsPerEthnic: 0
+  showWilds: 0
+  maxEthnics: 64
+  maxRealmsPerEthnic: 16
   regionType: 36
   regionRoughness: 0.7
-  forceWildDeserts: 0
+  forceWildDeserts: 1
 --- !u!1 &519420028
 GameObject:
   m_ObjectHideFlags: 0

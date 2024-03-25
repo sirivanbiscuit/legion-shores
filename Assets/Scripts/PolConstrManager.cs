@@ -21,6 +21,8 @@ public class PolConstrManager : MonoBehaviour
     public Tile waterFiller;
     public Tile mountFiller;
 
+    public bool showWilds;
+
     public int maxEthnics;
     public int maxRealmsPerEthnic;
     public RegS regionType;
@@ -49,11 +51,10 @@ public class PolConstrManager : MonoBehaviour
         byte[,] exp = terrainManager.Export();
         Seed seed = new(terrainManager.mapSeed);
         World world = WP.Export(
-            exp,
-            terrainManager.mapSeed,
-            maxEthnics, maxRealmsPerEthnic,
-            regionType, regionRoughness,
+            exp, terrainManager.mapSeed,
+            maxEthnics, regionType, regionRoughness,
             forceWildDeserts);
+        world.SpawnWorldRealms(maxRealmsPerEthnic);
         string[,,] p_constr = world.GetPol();
         // clear and position map
         AssetDatabase.Refresh();
@@ -77,18 +78,20 @@ public class PolConstrManager : MonoBehaviour
         int cRt = (int)Math.Ceiling(Math.Pow(maxEthnics, 1d / 3d));
         Color c;
         string nil = WP.BaseId(WP.LEN_ETH_ID);
+        string nilrea = WP.BaseId(WP.LEN_REA_ID);
         // loop across map grid
         for (int x = 0; x < size; x++)
             for (int y = 0; y < size; y++)
             {
                 get = new(x, y);
                 string str = p_constr[x, y, l];
-                string reg_str = p_constr[x, y, reg_l];
+                string regStr = p_constr[x, y, reg_l];
+                bool rea = p_constr[x, y, WP.LAYER_REA] != nilrea;
                 // create a new reg key if necessary
-                if (!reg_cs.ContainsKey(reg_str))
+                if (!reg_cs.ContainsKey(regStr))
                 {
-                    reg_cs[reg_str] = regs ?
-                        (float)seed.PerRaw() * 0.5f + 0.5f
+                    reg_cs[regStr] = regs ?
+                        (rea ? 0.0f : (float)seed.PerRaw() * 0.5f + 0.5f)
                         : 1.0f;
                 }
                 // eth case 1: a non-null non-wild tile
@@ -124,13 +127,13 @@ public class PolConstrManager : MonoBehaviour
                     polMap.SetTile(get, landFiller);
                     polMap.RemoveTileFlags(get, TileFlags.LockColor);
                     polMap.SetColor(get, new(
-                        cs[str].r * reg_cs[reg_str],
-                        cs[str].g * reg_cs[reg_str],
-                        cs[str].b * reg_cs[reg_str]
+                        cs[str].r * reg_cs[regStr],
+                        cs[str].g * reg_cs[regStr],
+                        cs[str].b * reg_cs[regStr]
                         ));
                 }
                 // eth case 2: the tile is impass, thus no eth
-                else if (!overlay && str == nil)
+                else if (!overlay && (str == nil || !showWilds))
                 {
                     // water tile
                     if (MapUtil.IsAquatic(exp[x, y]))
@@ -146,9 +149,9 @@ public class PolConstrManager : MonoBehaviour
                     polMap.RemoveTileFlags(get, TileFlags.LockColor);
                     if (regs)
                         polMap.SetColor(get, new(
-                            0.3f * reg_cs[reg_str],
-                            0.3f * reg_cs[reg_str],
-                            0.3f * reg_cs[reg_str]
+                            0.3f * reg_cs[regStr],
+                            0.3f * reg_cs[regStr],
+                            0.3f * reg_cs[regStr]
                             ));
                     else
                         polMap.SetColor(get, Color.black);
