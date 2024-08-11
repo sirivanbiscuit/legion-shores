@@ -1,3 +1,4 @@
+using PoliticalEntities;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -10,6 +11,56 @@ public class MiscTools
      * ATM but might be useful later. Also they took too long to make
      * to make deletion worthwhile.
      */
+
+    /*
+    // test
+    foreach (Ethnic e in _ethnics)
+    {
+        int p = 0;
+        foreach (Realm r in e.Realms()) 
+            if (r.Type == RealmType.PLAYER) p++;
+        Debug.Log(e.GetName() + " has " 
+            + e.Regions().Count + " regions, " 
+            + p + " players, and " 
+            + e.Realms().Count + " realms");
+    }
+    // test
+    foreach (Ethnic e in _ethnics)
+    {
+        foreach (Ethnic check in _ethnics)
+        {
+            if (e != check)
+            {
+                foreach (Region r1 in e.Regions())
+                    foreach (Region r2 in check.Regions())
+                    {
+                        if (r1 == r2)
+                        {
+                            Debug.Log(r1.GetName() + " is in both "
+                + e.GetName() + " and " + check.GetName()); break;
+                        }
+                    }
+            }
+        }
+    }
+
+    // test
+    Debug.Log(RegionsCount() + " regions via count");
+    List<string> thing = new();
+    for (int i = 0; i < _pol.GetLength(0); i++)
+        for (int j = 0; j < _pol.GetLength(1); j++)
+        {
+            string s = _pol[i, j, WP.LAYER_REG];
+            if (!thing.Contains(s)) thing.Add(s);
+        }
+    Debug.Log(thing.Count + " regions via map");
+    int find = 0;
+    foreach (AbstractPol p in _info.Values)
+    {
+        if (p is Region) find++;
+    }
+    Debug.Log(find + " regions via dict");*/
+
 
     /*
     class GridResource
