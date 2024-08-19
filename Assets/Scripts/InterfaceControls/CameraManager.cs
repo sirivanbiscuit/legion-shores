@@ -8,7 +8,7 @@ public class CameraManager : MonoBehaviour
 {
     public new Camera camera;
 
-    public const int MIN_ZOOM = 4, MAX_ZOOM = 24;
+    public const int MIN_ZOOM = 1, MAX_ZOOM = 14;
 
     private float boundPushX, boundPushY;
 
@@ -22,17 +22,18 @@ public class CameraManager : MonoBehaviour
     private bool init = false;
     private int mapSize = 256; // starts at min size
 
-    public void BindTo(int mapSize)
+    public void BindTo(int mapSize, bool fullZoomOut)
     {
         this.mapSize = mapSize;
         init = true;
+        if (fullZoomOut) camera.orthographicSize = MAX_ZOOM;
+        ResetBounds();
+        ReaffirmBounds();
     }
 
     void Start()
     {
         ratio = camera.pixelWidth / (float)camera.pixelHeight;
-        ResetBounds();
-        ReaffirmBounds();
     }
 
     void Update()
@@ -51,8 +52,7 @@ public class CameraManager : MonoBehaviour
             if (to.y >= minPosY && to.y <= maxPosY) SetY(to.y);
         }
 
-        float result = camera.orthographicSize
-            + Input.mouseScrollDelta.y * -2;
+        float result = camera.orthographicSize - Input.mouseScrollDelta.y;
         if (result != camera.orthographicSize &&
             result >= MIN_ZOOM && result <= MAX_ZOOM)
         {

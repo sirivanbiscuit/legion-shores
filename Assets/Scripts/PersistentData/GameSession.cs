@@ -8,9 +8,9 @@ using UnityEngine;
 [Serializable]
 public class GameSession
 {
-    private World _world;
+    private readonly World _world;
 
-    private List<PlayerInstance> _players = new();
+    private readonly List<PlayerInstance> _players = new();
 
     public World GetWorld() => _world;
 

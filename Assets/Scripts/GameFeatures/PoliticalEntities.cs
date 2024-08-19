@@ -1,12 +1,10 @@
-using JetBrains.Annotations;
 using SeedTools;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using Unity.VisualScripting;
-using UnityEngine;
 using WP = GenerationTools.WorldPopulator;
 using NG = NameGenerators;
+using ResourceDecks;
+using Unity.VisualScripting;
 
 namespace PoliticalEntities
 {
@@ -25,6 +23,7 @@ namespace PoliticalEntities
 
     public enum RegS
     {
+        // Should be approx sqrt of reg area
         TINY = 36,
         SMALL = 49,
         NORMAL = 64,
@@ -34,10 +33,24 @@ namespace PoliticalEntities
 
     public enum RealmType
     {
-        NULL = 0,
-        PLAYER = 1,
-        BARON = 2,
-        LORD = 3
+        NULL,
+        PLAYER,
+        BARON,
+        LORD
+    }
+
+    public enum EntityType
+    {
+        NULL,
+        FARM,
+        FIELD,
+        MINE,
+        PORT,
+        ROAD,
+        VILLAGE,
+        VILLAGE_FORT,
+        CASTLE,
+        CASTLE_FORT
     }
 
     [Serializable]
@@ -151,7 +164,40 @@ namespace PoliticalEntities
         public override PolType PolType()
             => PoliticalEntities.PolType.ENTITY;
 
-        public Entity(string name) : base(name) { }
+        public readonly EntityType Type;
+
+        public readonly CivicDeck CivicDeck = null;
+        public readonly ArmyDeck ArmyDeck = null;
+        public readonly NavalDeck NavalDeck = null;
+
+        public Entity(EntityType type, string name)
+            : base(name)
+        {
+            Type = type;
+            if (CanStoreCivicDeck()) CivicDeck = new();
+            if (CanStoreArmyDeck()) ArmyDeck = new();
+            if (CanStoreNavalDeck()) NavalDeck = new();
+        }
+
+        public bool CanStoreCivicDeck()
+            => Type == EntityType.CASTLE
+            || Type == EntityType.CASTLE_FORT;
+
+        public bool CanStoreArmyDeck()
+            => Type == EntityType.VILLAGE
+            || Type == EntityType.VILLAGE_FORT
+            || Type == EntityType.CASTLE
+            || Type == EntityType.CASTLE_FORT;
+
+        public bool CanStoreNavalDeck()
+            => Type == EntityType.PORT;
+
+        public bool CanStoreIncomeDeck()
+            => Type == EntityType.VILLAGE
+            || Type == EntityType.VILLAGE_FORT
+            || Type == EntityType.CASTLE
+            || Type == EntityType.CASTLE_FORT
+            || Type == EntityType.PORT;
     }
 
     /// <summary>
@@ -172,6 +218,9 @@ namespace PoliticalEntities
 
         // tracks current ID for new placeable realms
         private int _rea = 1;
+
+        // tracks current ID for new entity locations
+        private int _ent = 1;
 
         public byte[,] GetTerr() => _terr;
         public string[,,] GetPol() => _pol;
@@ -406,6 +455,38 @@ namespace PoliticalEntities
             }
             NG.Purge();
         }
+
+        /// <summary>
+        /// Places an Entity in the World if there is not already one there.
+        /// <para/>
+        /// </summary>
+        public bool PlaceEntity(EntityType type, int x, int y)
+        {
+            Entity findEnt = GetEntity(x, y);
+            if (findEnt != null) return false;
+            Region findReg = GetRegion(x, y);
+            Entity entity = new(type,
+                findReg.GetName() + " " + WorldTools.EntityName(type));
+            string enc = WP.IntToId(_ent++, WP.LEN_ENT_ID);
+            _pol[x, y, WP.LAYER_ENT] = enc;
+            WorldTools.CreateRef(entity, enc, _info);
+            _entities.Add(entity);
+            return true;
+        }
+
+        /// <summary>
+        /// Destroys the Entity at the location if there is one there.
+        /// </summary>
+        public bool Raze(int x, int y)
+        {
+            Entity razed = GetEntity(x, y);
+            if (razed == null) return false;
+            WorldTools.DestroyRef(PolType.ENTITY, 
+                _pol[x, y, WP.LAYER_ENT], _info);
+            _pol[x, y, WP.LAYER_ENT] = WP.BaseId(WP.LAYER_ENT);
+            _entities.Remove(razed);
+            return true;
+        }
     }
 
     /// <summary>
@@ -413,7 +494,7 @@ namespace PoliticalEntities
     /// </summary>
     public static class WorldTools
     {
-        public static void CreateRef(PolType type,
+        public static void CreateQuickRef(PolType type,
             string fullName, string enc,
             Dictionary<string, AbstractPol> info)
         {
@@ -422,7 +503,6 @@ namespace PoliticalEntities
                 PolType.ETHNIC => new Ethnic(fullName),
                 PolType.REGION => new Region(fullName),
                 PolType.REALM => new Realm(fullName),
-                PolType.ENTITY => new Entity(fullName),
                 _ => throw new ArgumentException("WT01: Bad PolType"),
             },
             enc, info);
@@ -432,6 +512,9 @@ namespace PoliticalEntities
             Dictionary<string, AbstractPol> info)
             => info[Bind(pol.PolType(), enc)] = pol;
 
+        public static bool DestroyRef(PolType type, string enc,
+            Dictionary<string, AbstractPol> info)
+            => info.Remove(Bind(type, enc));
 
         public static AbstractPol GetRef(PolType type, string enc,
             Dictionary<string, AbstractPol> info)
@@ -453,6 +536,19 @@ namespace PoliticalEntities
 
         private static string Unbind(string referenceKey)
             => referenceKey[2..];
+
+        public static string EntityName(EntityType entityType)
+            => entityType switch
+            {
+                EntityType.FARM => "Farm",
+                EntityType.FIELD => "Field",
+                EntityType.MINE => "Mine",
+                EntityType.PORT => "Port",
+                EntityType.ROAD => "Road",
+                EntityType.VILLAGE or EntityType.VILLAGE_FORT => "Village",
+                EntityType.CASTLE or EntityType.CASTLE_FORT => "Castle",
+                _ => "???",
+            };
     }
 
 }

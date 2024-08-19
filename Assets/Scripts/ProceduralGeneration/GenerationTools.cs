@@ -1311,7 +1311,7 @@ namespace GenerationTools
         private void ResetTemp() => _temp = new int[_size, _size];
 
         private void CreateRef(PolType type, string fullName, string enc)
-            => WorldTools.CreateRef(type, fullName, enc, _info);
+            => WorldTools.CreateQuickRef(type, fullName, enc, _info);
 
         private AbstractPol GetNameRef(PolType type, string enc)
             => WorldTools.GetRef(type, enc, _info);

@@ -5,10 +5,12 @@ using UnityEngine.SceneManagement;
 using GenerationTools;
 using SeedTools;
 using PoliticalEntities;
+using System.IO;
 
 public class TitleScreenControls : MonoBehaviour
 {
     public Canvas loadingCanvas;
+    public Canvas resumingCanvas;
 
     public void CreateGame()
     {
@@ -19,6 +21,14 @@ public class TitleScreenControls : MonoBehaviour
 
     public void ResumeGame()
     {
+        try
+        {
+            StaticGameInstance.LoadInstance();
+            StaticTerraform.Bind(StaticGameInstance.Get().GetWorld());
+            resumingCanvas.gameObject.SetActive(true);
+            SceneManager.LoadScene("GameSessionScreen");
+        }
+        catch (FileNotFoundException) { /* Do nothing */ }
     }
 
     public void TerraformMode()
@@ -26,5 +36,6 @@ public class TitleScreenControls : MonoBehaviour
 
     public void SandboxMode()
     {
+        // TODO: add this
     }
 }

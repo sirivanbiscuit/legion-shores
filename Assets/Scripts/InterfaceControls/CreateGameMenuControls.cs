@@ -54,7 +54,7 @@ public class CreateGameMenuControls : MonoBehaviour
         GameSession gameSession = new(upload, selected);
         StaticGameInstance.BindAndSave(gameSession);
         loadingCanvas.gameObject.SetActive(true);
-        /* TODO: open game scene here */
+        SceneManager.LoadScene("GameSessionScreen");
     }
 
     private void SetInfoText()

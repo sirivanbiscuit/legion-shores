@@ -81,6 +81,7 @@ public class TerraformMenuControls : MonoBehaviour
             World get = StaticTerraform.Get();
             terr = get.GetTerr();
             save = get;
+            seedInput.text = get.Seed().ToString();
             DrawTerrain();
             DrawEthnics();
             ToggleEthnics();
@@ -132,7 +133,7 @@ public class TerraformMenuControls : MonoBehaviour
         => AutofillFields(autofillDropdown.value);
 
     public void RandomSeed()
-        => seedInput.SetTextWithoutNotify(new Seed().Get() + "");
+        => seedInput.SetTextWithoutNotify(new Seed().Get().ToString());
 
     public void GenerateTerrain()
     {
@@ -254,12 +255,12 @@ public class TerraformMenuControls : MonoBehaviour
         RectTransform tCV = terrBackCV.GetComponent<RectTransform>();
         RectTransform t = terrBack.GetComponent<RectTransform>();
         Vector3 thisP = terrMap.transform.position;
+        bool changedSize = mapSize != lastMapSize;
         tCV.sizeDelta = new(mapSize, mapSize / 2);
         tCV.anchoredPosition = new(thisP.x, thisP.y + mapSize / 4);
         t.sizeDelta = new(mapSize, mapSize / 2);
-        c.camera.orthographicSize = CameraManager.MAX_ZOOM;
-        c.BindTo(mapSize);
-        if (mapSize != lastMapSize)
+        c.BindTo(mapSize, changedSize);
+        if (changedSize)
         {
             c.camera.transform.position = new(0f, mapSize / 4f, -1f);
             lastMapSize = mapSize;
@@ -339,7 +340,7 @@ public class TerraformMenuControls : MonoBehaviour
             regSizeOption = 2; wildOption = 2;
         }
         // assign to fields
-        RandomSeed();
+        if (seedInput.text.Trim().Length == 0) RandomSeed();
         mapSizeInput.SetTextWithoutNotify(ints[0] + "");
         borderInput.SetTextWithoutNotify(ints[1] + "");
         cyclesInput.SetTextWithoutNotify(ints[2] + "");

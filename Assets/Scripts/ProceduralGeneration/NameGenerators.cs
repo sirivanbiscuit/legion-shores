@@ -86,7 +86,7 @@ public static class NameGenerators
             build += WeightedConsonant(seed, i == len ? 0d : 0.2d);
         }
         if (type == PolType.ETHNIC) build += SomeElemOf(seed, PART_SUF);
-        build = MakeUpper(build);
+        build = Capitalize(build);
         // check to make sure its not a duplicate
         if (_usage.Contains(build)) AbstractName(type, seed);
         else _usage.Add(build);
@@ -112,7 +112,7 @@ public static class NameGenerators
     private static string SomeElemOf(Seed seed, string[] options)
         => options[seed.RangeRoll(options.Length - 1)];
 
-    private static string MakeUpper(string source)
+    public static string Capitalize(string source)
         => source[0].ToString().ToUpper() + source[1..];
 
     /// <summary>
